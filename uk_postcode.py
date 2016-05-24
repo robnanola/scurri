@@ -10,12 +10,6 @@ class InvalidFormat(Exception):
     """
     pass
 
-class DetailsNotFound(Exception):
-    """
-    Custom exception for null details return from POSTCODE_IO_URL
-    """
-    pass
-
 
 class UKPostCode(object):
     """
@@ -59,23 +53,58 @@ class UKPostCode(object):
 
     def get_post_code_details(self, post_code):
         """
-        Lazy method to get post_code details via http://postcodes.io/ 
+        check if post_code is a valid format and return its details
 
-        Sample request:
-            http://postcodes.io/OX49 5NU
+        Arg:
+            postcode: OX49 5NU
 
-        Sample response:
-            { u'eastings': 464447, u'outcode': u'OX49', u'admin_county': u'Oxfordshire', 
-            u'postcode': u'OX49 5NU', u'incode': u'5NU'}
+        Returns:
+            { 
+                'outcode': 'OX49',  
+                'postcode': 'OX49 5NU', 
+                'incode': u'5NU', 
+                'area': 'OX', 
+                'district':'49', 
+                'sector':'5', 
+                'unit':'NU'
+            }
 
         """
 
         if self.is_valid(post_code):
-            response = requests.get(self.POSTCODE_IO_URL + post_code).json()
-
-            if response['status'] == 200:
-                return response['result']
-
-            raise DetailsNotFound('No details found for {0}'.format(post_code))
+            return self.do_parse(post_code)
 
         raise InvalidFormat('Invalid postcode format for {0}'.format(post_code))
+
+
+
+    def do_parse(self, post_code):
+        """
+        Returns: post_code, outcode, incode, area, district, sector, unit given the post_code
+
+        Given: PO1 3AX
+
+        >> outcode = PO1
+        >> incode = 3AX
+        >> area = PO
+        >> district = 1
+        >> sector = 3
+        >> unit = AX
+
+        """
+        regex = re.compile("([a-zA-Z]+)([0-9a-zA-Z]+)? ([0-9]+)([a-zA-Z]+)")
+
+        result = dict(zip(('outcode', 'incode'), post_code.split()))
+        result['post_code'] = post_code
+
+        try:
+            details = dict(zip(('area', 'district', 'sector', 'unit'), regex.match(post_code).groups()))
+            result.update(details)
+        except AttributeError:
+            # special case return outcode and incode only
+            pass
+
+        return result
+
+
+
